@@ -6,6 +6,7 @@ on:
     branches:
       - master
       - test
+      - qt-6.8
   workflow_dispatch:
 
 concurrency:
@@ -16,14 +17,13 @@ permissions:
   packages: write
 
 env:
-  qt_version: ${{ vars.QT_VERSION }}
-  qt_checkout_tag: ${{ vars.QT_CHECKOUT_TAG }}
+  qt_version: 6.8.0
+  qt_checkout_tag: 6.8
 
 jobs:
   build_linux:
     name: Build for Linux
     runs-on: [ ubuntu-22.04 ]
-    if: false
 
     env:
       build_dir: './build'
@@ -197,7 +197,6 @@ jobs:
   build_macos:
     name: Build for MacOS
     runs-on: [ macos-13 ]
-    if: false
 
     env:
       build_dir: './build'
