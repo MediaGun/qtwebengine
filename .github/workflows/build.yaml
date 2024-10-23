@@ -23,7 +23,7 @@ env:
 jobs:
   build_linux:
     name: Build for Linux
-    runs-on: [ ubuntu-22.04 ]
+    runs-on: [ ubuntu-24.04 ]
 
     env:
       build_dir: './build'
@@ -106,8 +106,8 @@ jobs:
 
   build_windows:
     name: Build for Windows
-    # runs-on: [ windows-2019 ]
-    runs-on: [ self-hosted ]
+    runs-on: [ windows-2022 ]
+    # runs-on: [ self-hosted ]
 
     env:
       checkout_dir: 'D:\qtwe\src'
@@ -115,9 +115,12 @@ jobs:
       install_prefix: 'D:\qtwe\install'
       qt_dir: 'D:\opt'
       qt_tools_dir: ${{ github.workspace }}/Qt/Tools
-      cmake_c_compiler: 'C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\bin\HostX64\x64\cl.exe'
-      cmake_cxx_compiler: 'C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\bin\HostX64\x64\cl.exe'
-      vcvars: 'C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat'
+      # cmake_c_compiler: 'C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\bin\HostX64\x64\cl.exe'
+      # cmake_cxx_compiler: 'C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30133\bin\HostX64\x64\cl.exe'
+      # vcvars: 'C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat'
+      cmake_c_compiler: 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC\14.41.34120\bin\HostX64\x64\cl.exe'
+      cmake_cxx_compiler: 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC\14.41.34120\bin\HostX64\x64\cl.exe'
+      vcvars: 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat'
 
     steps:
       - name: Prepare environment
@@ -140,6 +143,7 @@ jobs:
         uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.qt_version }}
+          arch: 'win64_msvc2022_64'
           dir: ${{ env.qt_dir }}
           tools: 'tools_ninja'
           modules: 'qtshadertools'
