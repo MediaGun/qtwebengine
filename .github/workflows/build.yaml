@@ -19,6 +19,7 @@ permissions:
 env:
   qt_version: 6.8.0
   qt_checkout_tag: 6.8
+  build_options: '-feature-qtwebengine-core-build -feature-qtwebengine-quick-build -no-feature-qtwebengine-widgets-build -webengine-proprietary-codecs -no-feature-webengine-printing-and-pdf -no-feature-webengine-spellchecker -no-feature-webengine-webrtc -no-feature-qtpdf-build -no-feature-qtpdf-quick-build -no-feature-qtpdf-widgets-build -no-feature-webengine-extensions'
 
 jobs:
   build_linux:
@@ -89,7 +90,7 @@ jobs:
           mkdir qtwebengine
           cd qtwebengine
 
-          ${{ env.QT_ROOT_DIR }}/bin/qt-configure-module ../../qtwebengine -webengine-proprietary-codecs -- -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }}
+          ${{ env.QT_ROOT_DIR }}/bin/qt-configure-module ../../qtwebengine ${{ env.build_options }} -- -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }} -DQT_NO_FEATURE_AUTO_RESET=ON
 
       - name: Build QtWebEngine
         run: |
@@ -181,7 +182,7 @@ jobs:
         run: |
           call "${{ env.vcvars }}"
 
-          ${{ env.QT_ROOT_DIR }}\bin\qt-configure-module.bat ${{ env.checkout_dir }} -webengine-proprietary-codecs -- -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }}
+          ${{ env.QT_ROOT_DIR }}\bin\qt-configure-module.bat ${{ env.checkout_dir }} ${{ env.build_options }} -- -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }} -DQT_NO_FEATURE_AUTO_RESET=ON
 
       - name: Build QtWebEngine
         shell: cmd
@@ -200,7 +201,7 @@ jobs:
 
   build_macos:
     name: Build for MacOS
-    runs-on: [ macos-13 ]
+    runs-on: [ macos-14 ]
 
     env:
       build_dir: './build'
@@ -264,7 +265,7 @@ jobs:
 
           ls -la ${{ github.workspace }}/qt/qtwebengine
 
-          ${{ env.QT_ROOT_DIR }}/bin/qt-configure-module ${{ github.workspace }}/qt/qtwebengine -webengine-proprietary-codecs -- -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }}
+          ${{ env.QT_ROOT_DIR }}/bin/qt-configure-module ${{ github.workspace }}/qt/qtwebengine ${{ env.build_options }} -- -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }} -DQT_NO_FEATURE_AUTO_RESET=ON
 
       - name: Build QtWebEngine
         run: |
