@@ -99,16 +99,18 @@ jobs:
           cmake --build . --parallel
           cmake --install .
 
+      - name: 'Tar files (to preserve symlinks)'
+        run: tar -cvf qtwebengine.tar -C ${{ env.install_prefix }} .
+
       - name: Publish
         uses: actions/upload-artifact@v4
         with:
           name: qtwebengine-linux
-          path: ${{ env.install_prefix }}
+          path: qtwebengine.tar
 
   build_windows:
     name: Build for Windows
-    runs-on: [ windows-2022 ]
-    # runs-on: [ self-hosted ]
+    runs-on: [ self-hosted ]
 
     env:
       checkout_dir: 'D:\qtwe\src'
@@ -201,7 +203,7 @@ jobs:
 
   build_macos:
     name: Build for MacOS
-    runs-on: [ macos-14 ]
+    runs-on: [ self-hosted ]
 
     env:
       build_dir: './build'
@@ -274,10 +276,11 @@ jobs:
           cmake --build . --parallel
           cmake --install .
 
-          cd ..
+      - name: 'Tar files (to preserve symlinks)'
+        run: tar -cvf qtwebengine.tar -C ${{ env.install_prefix }} .
 
       - name: Publish
         uses: actions/upload-artifact@v4
         with:
           name: qtwebengine-macos
-          path: ${{ env.install_prefix }}
+          path: qtwebengine.tar
