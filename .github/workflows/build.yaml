@@ -110,7 +110,7 @@ jobs:
 
   build_windows:
     name: Build for Windows
-    runs-on: [ self-hosted ]
+    runs-on: [ windows-self-hosted ]
 
     env:
       checkout_dir: 'D:\qtwe\src'
@@ -203,7 +203,7 @@ jobs:
 
   build_macos:
     name: Build for MacOS
-    runs-on: [ self-hosted ]
+    runs-on: [ macos-self-hosted ]
 
     env:
       build_dir: './build'
