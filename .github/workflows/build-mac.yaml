@@ -1,4 +1,4 @@
-name: Build library
+name: Build library Mac
 run-name: Build library by ${{ github.actor }}
 
 on:
@@ -27,6 +27,7 @@ jobs:
   build_linux:
     name: Build for Linux
     runs-on: [ ubuntu-24.04 ]
+    if: false
 
     env:
       build_dir: './build'
@@ -113,6 +114,7 @@ jobs:
   build_windows:
     name: Build for Windows
     runs-on: [ windows-self-hosted ]
+    if: false
 
     env:
       checkout_dir: 'D:\qtwe\src'
@@ -203,7 +205,6 @@ jobs:
   build_macos:
     name: Build for MacOS
     runs-on: [ macos-self-hosted ]
-    if: false
 
     env:
       build_dir: './build'
