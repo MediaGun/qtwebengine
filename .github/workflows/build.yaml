@@ -219,6 +219,7 @@ jobs:
       - name: Prepare libraries
         run: |
           brew install gperf bison flex
+          brew reinstall python
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
