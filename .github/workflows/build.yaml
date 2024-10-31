@@ -19,8 +19,8 @@ permissions:
 env:
   qt_version: 6.8.0
   qt_checkout_tag: 6.8
-  # build_options: '-feature-qtwebengine-core-build -feature-qtwebengine-quick-build -no-feature-qtwebengine-widgets-build -webengine-proprietary-codecs -no-feature-webengine-printing-and-pdf -no-feature-webengine-spellchecker -no-feature-webengine-webrtc -no-feature-qtpdf-build -no-feature-qtpdf-quick-build -no-feature-qtpdf-widgets-build -no-feature-webengine-extensions'
-  build_options: '-feature-qtwebengine-core-build -feature-qtwebengine-quick-build -no-feature-qtwebengine-widgets-build -webengine-proprietary-codecs -no-feature-webengine-printing-and-pdf -no-feature-webengine-spellchecker -no-feature-webengine-webrtc -no-feature-qtpdf-widgets-build -no-feature-webengine-extensions'
+  # build_options: '-feature-qtwebengine-core-build -feature-qtwebengine-quick-build -no-feature-qtwebengine-widgets-build -webengine-proprietary-codecs -no-feature-webengine-printing-and-pdf -no-feature-webengine-spellchecker -no-feature-webengine-webrtc -no-feature-qtpdf-build -no-feature-qtpdf-quick-build -no-feature-qtpdf-widgets-build -no-feature-webengine-extensions -no-feature-webenginedriver'
+  build_options: '-feature-qtwebengine-core-build -feature-qtwebengine-quick-build -no-feature-qtwebengine-widgets-build -webengine-proprietary-codecs -no-feature-webengine-printing-and-pdf -no-feature-webengine-spellchecker -no-feature-webengine-webrtc -no-feature-qtpdf-widgets-build -no-feature-webengine-extensions -no-feature-webenginedriver'
 
 
 jobs:
@@ -38,7 +38,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install \
             bison build-essential flex git gperf gyp \
-            libasound2-dev libatspi2.0-dev libavcodec-dev libavformat-dev libavutil-dev libcups2-dev \
+            libasound2-dev libatspi2.0-dev libavcodec-dev libavformat-dev libavutil-dev libcups2-dev libgbm-dev \
             libdbus-1-dev libdrm-dev libegl1-mesa-dev libevent-dev libfontconfig1-dev libfreetype6-dev libicu-dev libjsoncpp-dev libminizip-dev \
             libnss3-dev libopus-dev libpci-dev libprotobuf-dev libpulse-dev libre2-dev libsnappy-dev libsrtp2-dev libssl-dev libudev-dev libvpx-dev \
             libwebp-dev libx11-dev libx11-xcb-dev libxcb-glx0-dev libxcb-icccm4-dev libxcb-image0-dev libxcb-keysyms1-dev libxcb-randr0-dev \
@@ -92,7 +92,7 @@ jobs:
           mkdir qtwebengine
           cd qtwebengine
 
-          ${{ env.QT_ROOT_DIR }}/bin/qt-configure-module ../../qtwebengine ${{ env.build_options }} -- -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }} -DQT_NO_FEATURE_AUTO_RESET=ON
+          ${{ env.QT_ROOT_DIR }}/bin/qt-configure-module ../../qtwebengine ${{ env.build_options }} -- -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }} -DQT_NO_FEATURE_AUTO_RESET=ON
 
       - name: Build QtWebEngine
         run: |
@@ -183,7 +183,7 @@ jobs:
         run: |
           call "${{ env.vcvars }}"
 
-          ${{ env.QT_ROOT_DIR }}\bin\qt-configure-module.bat ${{ env.checkout_dir }} ${{ env.build_options }} -- -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }} -DQT_NO_FEATURE_AUTO_RESET=ON
+          ${{ env.QT_ROOT_DIR }}\bin\qt-configure-module.bat ${{ env.checkout_dir }} ${{ env.build_options }} -- -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }} -DQT_NO_FEATURE_AUTO_RESET=ON
 
       - name: Build QtWebEngine
         shell: cmd
@@ -203,7 +203,6 @@ jobs:
   build_macos:
     name: Build for MacOS
     runs-on: [ macos-self-hosted ]
-    if: false
 
     env:
       build_dir: './build'
@@ -267,7 +266,7 @@ jobs:
 
           ls -la ${{ github.workspace }}/qt/qtwebengine
 
-          ${{ env.QT_ROOT_DIR }}/bin/qt-configure-module ${{ github.workspace }}/qt/qtwebengine ${{ env.build_options }} -- -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }} -DQT_NO_FEATURE_AUTO_RESET=ON
+          ${{ env.QT_ROOT_DIR }}/bin/qt-configure-module ${{ github.workspace }}/qt/qtwebengine ${{ env.build_options }} -- -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }} -DQT_NO_FEATURE_AUTO_RESET=ON
 
       - name: Build QtWebEngine
         run: |
