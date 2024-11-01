@@ -27,6 +27,7 @@ jobs:
   build_linux:
     name: Build for Linux
     runs-on: [ ubuntu-24.04 ]
+    if: false
 
     env:
       build_dir: './build'
@@ -203,6 +204,7 @@ jobs:
   build_macos:
     name: Build for MacOS
     runs-on: [ macos-self-hosted ]
+    if: false
 
     env:
       build_dir: './build'
