@@ -27,6 +27,7 @@ jobs:
   build_linux:
     name: Build for Linux
     runs-on: [ ubuntu-24.04 ]
+    timeout-minutes: 1440
     if: false
 
     env:
@@ -114,6 +115,7 @@ jobs:
   build_windows:
     name: Build for Windows
     runs-on: [ windows-self-hosted ]
+    timeout-minutes: 1440
 
     env:
       checkout_dir: 'D:\qtwe\src'
@@ -204,7 +206,7 @@ jobs:
   build_macos:
     name: Build for MacOS
     runs-on: [ macos-self-hosted ]
-    if: false
+    timeout-minutes: 1440
 
     env:
       build_dir: './build'
