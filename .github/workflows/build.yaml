@@ -42,9 +42,8 @@ jobs:
         -no-feature-webengine-developer-build \
         -no-feature-webengine-full-debug-info \
         -no-feature-webengine-spellchecker \
-        -no-feature-webengine-printing-and-pdf \
         -no-feature-webengine-extensions \
-        -no-feature-webenginedriver
+        -no-feature-webenginedriver \
 
     steps:
       - name: Install dependencies
