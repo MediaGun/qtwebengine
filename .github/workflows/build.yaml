@@ -34,6 +34,17 @@ jobs:
     env:
       build_dir: './build'
       install_prefix: '${{ github.workspace }}/install_linux'
+      build_opts: |
+        -webengine-proprietary-codecs
+        -webengine-pepper-plugins
+        -no-feature-qtwebengine-widgets-build
+        -no-feature-qtpdf-widgets-build
+        -no-feature-webengine-developer-build
+        -no-feature-webengine-full-debug-info
+        -no-feature-webengine-spellchecker
+        -no-feature-webengine-printing-and-pdf
+        -no-feature-webengine-extensions
+        -no-feature-webenginedriver
 
     steps:
       - name: Install dependencies
@@ -100,7 +111,7 @@ jobs:
           mkdir qtwebengine
           cd qtwebengine
 
-          ${{ env.QT_ROOT_DIR }}/bin/qt-configure-module ../../qtwebengine ${{ env.build_options }} -- ${{ env.build_type_option }} -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }}
+          ${{ env.QT_ROOT_DIR }}/bin/qt-configure-module ../../qtwebengine ${{ env.build_opts }} -- ${{ env.build_type_option }} -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }}
 
       - name: Build QtWebEngine
         run: |
