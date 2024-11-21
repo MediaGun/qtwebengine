@@ -35,15 +35,15 @@ jobs:
       build_dir: './build'
       install_prefix: '${{ github.workspace }}/install_linux'
       build_opts: |
-        -webengine-proprietary-codecs
-        -webengine-pepper-plugins
-        -no-feature-qtwebengine-widgets-build
-        -no-feature-qtpdf-widgets-build
-        -no-feature-webengine-developer-build
-        -no-feature-webengine-full-debug-info
-        -no-feature-webengine-spellchecker
-        -no-feature-webengine-printing-and-pdf
-        -no-feature-webengine-extensions
+        -webengine-proprietary-codecs \
+        -webengine-pepper-plugins \
+        -no-feature-qtwebengine-widgets-build \
+        -no-feature-qtpdf-widgets-build \
+        -no-feature-webengine-developer-build \
+        -no-feature-webengine-full-debug-info \
+        -no-feature-webengine-spellchecker \
+        -no-feature-webengine-printing-and-pdf \
+        -no-feature-webengine-extensions \
         -no-feature-webenginedriver
 
     steps:
