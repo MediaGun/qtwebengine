@@ -28,7 +28,7 @@ env:
 jobs:
   build_linux:
     name: Build for Linux
-    runs-on: [ ubuntu-22.04 ]
+    runs-on: [ ubuntu-22-selfhosted ]
     timeout-minutes: 1440
 
     env:
@@ -49,7 +49,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install \
+          sudo apt-get install -y \
             bison build-essential flex git gperf gyp \
             libasound2-dev libatspi2.0-dev libavcodec-dev libavformat-dev libavutil-dev libcups2-dev libgbm-dev \
             libdbus-1-dev libdrm-dev libegl1-mesa-dev libevent-dev libfontconfig1-dev libfreetype6-dev libicu-dev libjsoncpp-dev libminizip-dev \
