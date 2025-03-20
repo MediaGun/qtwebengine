@@ -132,6 +132,7 @@ jobs:
     name: Build for Windows
     runs-on: [ windows-self-hosted ]
     timeout-minutes: 1440
+    if: false
 
     env:
       checkout_dir: 'D:\qtwe\src'
@@ -223,6 +224,7 @@ jobs:
     name: Build for MacOS
     runs-on: [ macos-self-hosted ]
     timeout-minutes: 1440
+    if: false
 
     env:
       build_dir: './build'
