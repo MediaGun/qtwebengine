@@ -69,7 +69,7 @@ jobs:
         uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.qt_version }}
-          dir: /opt
+          dir: /srv/qt
           tools: 'tools_ninja'
           modules: 'qtshadertools'
 
@@ -93,22 +93,31 @@ jobs:
 
       - name: Get QtWebEngine sources
         run: |
-          mkdir qt && cd qt
+          if [ ! -d qt/qtwebengine/.git ]
+          then
+            mkdir qt && cd qt
+            git clone git://code.qt.io/qt/qtwebengine.git
 
-          git clone git://code.qt.io/qt/qtwebengine.git
-          cd qtwebengine
-          git checkout ${{ env.qt_checkout_tag }}
-          git submodule init
-          git submodule update
+            cd qtwebengine
+
+            git checkout ${{ env.qt_checkout_tag }}
+
+            git submodule init
+            git submodule update
+          else
+            cd qt/qtwebengine
+            git pull origin ${{ env.qt_checkout_tag }}
+          fi
+
           cd ..
 
       - name: Configure QtWebEngine
         run: |
           cd qt
 
+          rm -rf ${{ env.build_dir }}
           mkdir ${{ env.build_dir }} && cd ${{ env.build_dir }}
-          mkdir qtwebengine
-          cd qtwebengine
+          mkdir qtwebengine && cd qtwebengine
 
           ${{ env.QT_ROOT_DIR }}/bin/qt-configure-module ../../qtwebengine ${{ env.build_opts }} -- ${{ env.build_type_option }} -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }}
 
