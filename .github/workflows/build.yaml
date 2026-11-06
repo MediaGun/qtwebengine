@@ -64,7 +64,9 @@ env:
 jobs:
   build_linux:
     name: Build for Linux
-    runs-on: [ ubuntu-24.04 ]
+    # The oldest Ubuntu the app is packaged for: built against its glibc, the libraries also run on
+    # newer ones (24.04), not the other way round.
+    runs-on: [ ubuntu-22.04 ]
     # The maximum for GitHub-hosted runners.
     timeout-minutes: 360
 
