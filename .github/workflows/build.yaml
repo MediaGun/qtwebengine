@@ -50,6 +50,16 @@ env:
   cmake_version: '3.31.6'
   node_version: '20'
   python_version: '3.12'
+  # Compiler cache (ccache on Linux and macOS, sccache on Windows, which handles MSVC better). Qt
+  # WebEngine hands CMAKE_CXX_COMPILER_LAUNCHER on to Chromium's GN build as cc_wrapper, so Chromium's
+  # compiles are cached too. Per platform; GitHub keeps 10 GB of caches per repository.
+  ccache_max_size: 3G
+  # Cache hits need the same paths and compiler: paths relative to the checkout, compilers compared
+  # by content (a new runner image with the same compiler still hits), and __DATE__ and __TIME__
+  # ignored (Chromium doesn't use them in release builds).
+  CCACHE_BASEDIR: ${{ github.workspace }}
+  CCACHE_COMPILERCHECK: content
+  CCACHE_SLOPPINESS: time_macros,include_file_mtime,include_file_ctime
 
 jobs:
   build_linux:
@@ -110,6 +120,18 @@ jobs:
       - name: Install python modules
         run: pip install html5lib
 
+      # Restores the latest cache of this platform (also of an older Qt WebEngine: most of Chromium's
+      # files don't change between versions) and saves it after the job, also if the build fails or
+      # times out, so a re-run continues where it stopped.
+      - name: Set up ccache
+        uses: hendrikmuhs/ccache-action@v1.2.24
+        with:
+          variant: ccache
+          key: linux-${{ env.qt_checkout_tag }}
+          restore-keys: |
+            linux-
+          max-size: ${{ env.ccache_max_size }}
+
       - name: Get QtWebEngine sources
         run: |
           git clone --depth 1 --branch ${{ env.qt_checkout_tag }} ${{ env.qtwebengine_repo }} qt/qtwebengine
@@ -120,13 +142,20 @@ jobs:
         run: |
           mkdir -p ${{ env.build_dir }} && cd ${{ env.build_dir }}
 
-          ${{ env.QT_ROOT_DIR }}/bin/qt-configure-module ${{ github.workspace }}/qt/qtwebengine ${{ env.build_options }} -- ${{ env.build_type_option }} -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }}
+          ${{ env.QT_ROOT_DIR }}/bin/qt-configure-module ${{ github.workspace }}/qt/qtwebengine ${{ env.build_options }} -- ${{ env.build_type_option }} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }}
 
       - name: Build QtWebEngine
         working-directory: ${{ env.build_dir }}
+        # Less than the job's 360 minutes: if the build doesn't finish, the job still has time to
+        # save the cache.
+        timeout-minutes: 300
         run: |
           cmake --build . --parallel
           cmake --install .
+
+      - name: Cache statistics
+        if: always()
+        run: ccache --show-stats --verbose
 
       - name: 'Tar files (to preserve symlinks)'
         run: tar -cvf qtwebengine.tar -C ${{ env.install_prefix }} .
@@ -202,6 +231,18 @@ jobs:
       - name: Install python modules
         run: pip install html5lib
 
+      # Restores the latest cache of this platform (also of an older Qt WebEngine: most of Chromium's
+      # files don't change between versions) and saves it after the job, also if the build fails or
+      # times out, so a re-run continues where it stopped.
+      - name: Set up sccache
+        uses: hendrikmuhs/ccache-action@v1.2.24
+        with:
+          variant: sccache
+          key: windows-${{ env.qt_checkout_tag }}
+          restore-keys: |
+            windows-
+          max-size: ${{ env.ccache_max_size }}
+
       - name: Get QtWebEngine sources
         working-directory: ${{ env.checkout_dir }}
         run: |
@@ -212,14 +253,21 @@ jobs:
         shell: cmd
         working-directory: ${{ env.build_dir }}
         run: |
-          ${{ env.QT_ROOT_DIR }}\bin\qt-configure-module.bat ${{ env.checkout_dir }} ${{ env.build_options }} -- ${{ env.build_type_option }} -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }}
+          ${{ env.QT_ROOT_DIR }}\bin\qt-configure-module.bat ${{ env.checkout_dir }} ${{ env.build_options }} -- ${{ env.build_type_option }} -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }}
 
       - name: Build QtWebEngine
         shell: cmd
         working-directory: ${{ env.build_dir }}
+        # Less than the job's 360 minutes: if the build doesn't finish, the job still has time to
+        # save the cache.
+        timeout-minutes: 300
         run: |
           cmake --build . --parallel
           cmake --install .
+
+      - name: Cache statistics
+        if: always()
+        run: sccache --show-stats
 
       - name: Publish
         uses: actions/upload-artifact@v4
@@ -277,6 +325,18 @@ jobs:
       - name: Install python modules
         run: pip install html5lib
 
+      # Restores the latest cache of this platform (also of an older Qt WebEngine: most of Chromium's
+      # files don't change between versions) and saves it after the job, also if the build fails or
+      # times out, so a re-run continues where it stopped.
+      - name: Set up ccache
+        uses: hendrikmuhs/ccache-action@v1.2.24
+        with:
+          variant: ccache
+          key: macos-${{ env.qt_checkout_tag }}
+          restore-keys: |
+            macos-
+          max-size: ${{ env.ccache_max_size }}
+
       - name: Get QtWebEngine sources
         run: |
           git clone --depth 1 --branch ${{ env.qt_checkout_tag }} ${{ env.qtwebengine_repo }} qt/qtwebengine
@@ -287,13 +347,20 @@ jobs:
         run: |
           mkdir -p ${{ env.build_dir }} && cd ${{ env.build_dir }}
 
-          ${{ env.QT_ROOT_DIR }}/bin/qt-configure-module ${{ github.workspace }}/qt/qtwebengine ${{ env.build_options }} -- ${{ env.build_type_option }} -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }}
+          ${{ env.QT_ROOT_DIR }}/bin/qt-configure-module ${{ github.workspace }}/qt/qtwebengine ${{ env.build_options }} -- ${{ env.build_type_option }} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }}
 
       - name: Build QtWebEngine
         working-directory: ${{ env.build_dir }}
+        # Less than the job's 360 minutes: if the build doesn't finish, the job still has time to
+        # save the cache.
+        timeout-minutes: 300
         run: |
           cmake --build . --parallel
           cmake --install .
+
+      - name: Cache statistics
+        if: always()
+        run: ccache --show-stats --verbose
 
       - name: 'Tar files (to preserve symlinks)'
         run: tar -cvf qtwebengine.tar -C ${{ env.install_prefix }} .
