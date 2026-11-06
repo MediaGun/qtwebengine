@@ -8,6 +8,9 @@ on:
       - test
       - qt-6.8
       - qt-6.12
+    tags:
+      - 'v*'
+      - 'qt-*'
   workflow_dispatch:
 
 concurrency:
@@ -293,3 +296,36 @@ jobs:
         with:
           name: qtwebengine-macos
           path: qtwebengine.tar
+
+  # On a tag (e.g. v6.140.0): a GitHub release with one zip per platform, laid out as the app's
+  # build.yaml downloads them: qtwebengine-windows.zip has the install folder's contents, to be
+  # extracted into Qt; the Linux and macOS zips hold qtwebengine.tar, which keeps the symlinks.
+  release:
+    name: Publish release
+    if: github.ref_type == 'tag'
+    needs: [ build_linux, build_windows, build_macos ]
+    runs-on: [ ubuntu-24.04 ]
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Package
+        working-directory: artifacts
+        run: |
+          for platform in linux windows macos; do
+            (cd qtwebengine-$platform && zip -r -y ../../qtwebengine-$platform.zip .)
+          done
+          ls -la ..
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Qt WebEngine ${{ env.qt_checkout_tag }} for Qt ${{ env.qt_version }} (${{ github.ref_name }})
+          body: |
+            Qt WebEngine and Qt Pdf ${{ env.qt_checkout_tag }}, built against Qt ${{ env.qt_version }} for Linux, Windows and macOS.
+          files: qtwebengine-*.zip
