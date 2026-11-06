@@ -7,50 +7,66 @@ on:
       - master
       - test
       - qt-6.8
+      - qt-6.12
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}
+  group: ${{ github.workflow }}-${{ github.ref }}
 
 permissions:
   contents: read
   packages: write
 
 env:
-  qt_version: 6.8.0
-  qt_checkout_tag: 6.8.0
-  # build_options: '-feature-qtwebengine-core-build -feature-qtwebengine-quick-build -no-feature-qtwebengine-widgets-build -webengine-proprietary-codecs -no-feature-webengine-printing-and-pdf -no-feature-webengine-spellchecker -no-feature-webengine-webrtc -no-feature-qtpdf-build -no-feature-qtpdf-quick-build -no-feature-qtpdf-widgets-build -no-feature-webengine-extensions -no-feature-webenginedriver'
-  # build_options: '-feature-qtwebengine-core-build -feature-qtwebengine-quick-build -no-feature-qtwebengine-widgets-build -webengine-proprietary-codecs -no-feature-webengine-printing-and-pdf -no-feature-webengine-spellchecker -no-feature-webengine-webrtc -no-feature-qtpdf-widgets-build -no-feature-webengine-extensions -no-feature-webenginedriver'
-  build_options: '-webengine-proprietary-codecs -webengine-pepper-plugins -no-feature-webengine-extensions -no-feature-webenginedriver'
+  qt_version: 6.12.0
+  # Since Qt 6.12, Qt WebEngine is versioned on its own (Chromium 140 -> 6.140.0), and it isn't in
+  # qt5's v6.12.0 any more: Qt 6.12.0 ships Qt WebEngine and Qt Pdf 6.140.0. This is its release
+  # branch (the 6.8 build used the 6.8.0 branch the same way).
+  qt_checkout_tag: 6.140.0
+  # Qt's GitHub mirror: faster and more reliable from GitHub's runners than code.qt.io. The
+  # Chromium submodule's URL is relative, so it comes from the mirror too.
+  qtwebengine_repo: https://github.com/qt/qtwebengine.git
+  # The same on every platform. Only what the app uses is built (Qt WebEngine Core and Quick, Qt
+  # Pdf and Pdf Quick), which also keeps the build shorter, within GitHub's 6 hours per job.
+  build_options: >-
+    -webengine-proprietary-codecs
+    -webengine-pepper-plugins
+    -no-feature-qtwebengine-widgets-build
+    -no-feature-qtpdf-widgets-build
+    -no-feature-webengine-developer-build
+    -no-feature-webengine-full-debug-info
+    -no-feature-webengine-spellchecker
+    -no-feature-webengine-extensions
+    -no-feature-webenginedriver
   build_type_option: "" # "-DCMAKE_BUILD_TYPE=Release"
-
+  # Qt 6.12 needs CMake 3.25 or newer; Qt WebEngine 6.140 needs Node.js 20 or newer.
+  cmake_version: '3.31.6'
+  node_version: '20'
+  python_version: '3.12'
 
 jobs:
   build_linux:
     name: Build for Linux
-    runs-on: [ ubuntu-22-selfhosted ]
-    timeout-minutes: 1440
+    runs-on: [ ubuntu-24.04 ]
+    # The maximum for GitHub-hosted runners.
+    timeout-minutes: 360
 
     env:
-      build_dir: './build'
+      build_dir: '${{ github.workspace }}/build'
       install_prefix: '${{ github.workspace }}/install_linux'
-      build_opts: |
-        -webengine-proprietary-codecs \
-        -webengine-pepper-plugins \
-        -no-feature-qtwebengine-widgets-build \
-        -no-feature-qtpdf-widgets-build \
-        -no-feature-webengine-developer-build \
-        -no-feature-webengine-full-debug-info \
-        -no-feature-webengine-spellchecker \
-        -no-feature-webengine-extensions \
-        -no-feature-webenginedriver \
 
     steps:
+      # Chromium's sources and build need far more space than the runner leaves free.
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            bison build-essential flex git gperf gyp \
+            bison build-essential flex git gperf \
             libasound2-dev libatspi2.0-dev libavcodec-dev libavformat-dev libavutil-dev libcups2-dev libgbm-dev \
             libdbus-1-dev libdrm-dev libegl1-mesa-dev libevent-dev libfontconfig1-dev libfreetype6-dev libicu-dev libjsoncpp-dev libminizip-dev \
             libnss3-dev libopus-dev libpci-dev libprotobuf-dev libpulse-dev libre2-dev libsnappy-dev libsrtp2-dev libssl-dev libudev-dev libvpx-dev \
@@ -58,73 +74,49 @@ jobs:
             libxcb-render-util0-dev libxcb-shape0-dev libxcb-shm0-dev libxcb-sync0-dev libxcb-util-dev libxcb-xfixes0-dev libxcb-xinerama0-dev \
             libxcb-xkb-dev libxcb1-dev libxcomposite-dev libxcursor-dev libxdamage-dev libxext-dev libxfixes-dev libxi-dev libxkbcommon-dev \
             libxkbcommon-x11-dev libxkbfile-dev libxrandr-dev libxrender-dev libxshmfence-dev libxss-dev libxtst-dev \
-            ninja-build ninja-build protobuf-compiler
+            ninja-build protobuf-compiler
 
       - name: Install node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ env.node_version }}
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.qt_version }}
-          dir: /srv/qt
+          dir: ${{ runner.temp }}/qt
           tools: 'tools_ninja'
           modules: 'qtshadertools'
-
-      - name: Install Ninja
-        uses: seanmiddleditch/gha-setup-ninja@master
 
       - name: Setup cmake
         uses: jwlawson/actions-setup-cmake@v2
         with:
-          cmake-version: '3.24.3'
+          cmake-version: ${{ env.cmake_version }}
 
       - name: Install Python
         uses: actions/setup-python@v5
         with:
-          python-version: '>=3.10.0 <3.10.10'
+          python-version: ${{ env.python_version }}
 
       - name: Install python modules
-        run: |
-          python3 --version
-          pip install html5lib
+        run: pip install html5lib
 
       - name: Get QtWebEngine sources
         run: |
-          if [ ! -d qt/qtwebengine/.git ]
-          then
-            mkdir qt && cd qt
-            git clone git://code.qt.io/qt/qtwebengine.git
-
-            cd qtwebengine
-
-            git checkout ${{ env.qt_checkout_tag }}
-
-            git submodule init
-            git submodule update
-          else
-            cd qt/qtwebengine
-            git pull origin ${{ env.qt_checkout_tag }}
-          fi
-
-          cd ..
+          git clone --depth 1 --branch ${{ env.qt_checkout_tag }} ${{ env.qtwebengine_repo }} qt/qtwebengine
+          cd qt/qtwebengine
+          git submodule update --init --recursive --depth 1
 
       - name: Configure QtWebEngine
         run: |
-          cd qt
+          mkdir -p ${{ env.build_dir }} && cd ${{ env.build_dir }}
 
-          rm -rf ${{ env.build_dir }}
-          mkdir ${{ env.build_dir }} && cd ${{ env.build_dir }}
-          mkdir qtwebengine && cd qtwebengine
-
-          ${{ env.QT_ROOT_DIR }}/bin/qt-configure-module ../../qtwebengine ${{ env.build_opts }} -- ${{ env.build_type_option }} -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }}
+          ${{ env.QT_ROOT_DIR }}/bin/qt-configure-module ${{ github.workspace }}/qt/qtwebengine ${{ env.build_options }} -- ${{ env.build_type_option }} -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }}
 
       - name: Build QtWebEngine
+        working-directory: ${{ env.build_dir }}
         run: |
-          cd qt/build/qtwebengine
-
           cmake --build . --parallel
           cmake --install .
 
@@ -139,36 +131,42 @@ jobs:
 
   build_windows:
     name: Build for Windows
-    runs-on: [ windows-self-hosted ]
-    timeout-minutes: 1440
-    if: false
+    # windows-2022: Visual Studio 2022, as Qt's msvc2022_64 binaries and the app. windows-2025 has
+    # Visual Studio 2026, whose DLLs need a newer C++ runtime than the app ships.
+    runs-on: [ windows-2022 ]
+    # The maximum for GitHub-hosted runners.
+    timeout-minutes: 360
 
     env:
+      # Short paths on the runner's D: drive: Chromium's paths are long.
       checkout_dir: 'D:\qtwe\src'
       build_dir: 'D:\qtwe\build'
       install_prefix: 'D:\qtwe\install'
       qt_dir: 'D:\opt'
-      qt_tools_dir: ${{ github.workspace }}/Qt/Tools
-      cmake_c_compiler: 'C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.41.34120\bin\HostX64\x64\cl.exe'
-      cmake_cxx_compiler: 'C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.41.34120\bin\HostX64\x64\cl.exe'
-      vcvars: 'C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat'
 
     steps:
       - name: Prepare environment
         shell: pwsh
         run: |
           $p = "HKLM:\System\CurrentControlSet\Control\Filesystem"
-          Get-ItemPropertyValue $p LongPathsEnabled
           Set-ItemProperty $p LongPathsEnabled 1
-          Get-ItemPropertyValue $p LongPathsEnabled
+          git config --global core.longpaths true
 
-          mkdir -F ${{ env.checkout_dir }}
-          mkdir -F ${{ env.build_dir }}
+          New-Item -ItemType Directory -Force ${{ env.checkout_dir }}, ${{ env.build_dir }}
 
       - name: Prepare tools
         run: |
           perl -v
-          choco install -f -y gperf winflexbison3
+          choco install -y gperf winflexbison3
+
+      # The runner's MSVC (cl.exe and its environment) for all the steps below.
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.node_version }}
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -185,41 +183,32 @@ jobs:
       - name: Setup Cmake
         uses: jwlawson/actions-setup-cmake@v2
         with:
-          cmake-version: '3.24.3'
+          cmake-version: ${{ env.cmake_version }}
 
       - name: Install Python
         uses: actions/setup-python@v5
         with:
-          python-version: '>=3.10.0 <3.10.10'
+          python-version: ${{ env.python_version }}
 
       - name: Install python modules
-        run: |
-          python3 --version
-          pip install html5lib
+        run: pip install html5lib
 
       - name: Get QtWebEngine sources
         working-directory: ${{ env.checkout_dir }}
         run: |
-          git clone git://code.qt.io/qt/qtwebengine.git .
-
-          git checkout ${{ env.qt_checkout_tag }}
-          git submodule init
-          git submodule update
+          git clone --depth 1 --branch ${{ env.qt_checkout_tag }} ${{ env.qtwebengine_repo }} .
+          git submodule update --init --recursive --depth 1
 
       - name: Configure QtWebEngine
         shell: cmd
         working-directory: ${{ env.build_dir }}
         run: |
-          call "${{ env.vcvars }}"
-
           ${{ env.QT_ROOT_DIR }}\bin\qt-configure-module.bat ${{ env.checkout_dir }} ${{ env.build_options }} -- ${{ env.build_type_option }} -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }}
 
       - name: Build QtWebEngine
         shell: cmd
         working-directory: ${{ env.build_dir }}
         run: |
-          call "${{ env.vcvars }}"
-
           cmake --build . --parallel
           cmake --install .
 
@@ -231,30 +220,34 @@ jobs:
 
   build_macos:
     name: Build for MacOS
-    runs-on: [ macos-self-hosted ]
-    timeout-minutes: 1440
-    if: false
+    runs-on: [ macos-26 ]
+    # The maximum for GitHub-hosted runners.
+    timeout-minutes: 360
 
     env:
-      build_dir: './build'
+      build_dir: '${{ github.workspace }}/build'
       install_prefix: '${{ github.workspace }}/install_macos'
-      libs_dir: '${{ github.workspace }}/libs_deps'
 
     steps:
-      - name: Check out repository code
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref }}
-
       - name: Prepare libraries
         run: |
           brew install gperf bison flex
+
+      # Qt WebEngine 6.140 compiles Metal shaders: "Build requires Metal Toolchain to be installed
+      # via 'xcodebuild -downloadComponent MetalToolchain'".
+      - name: Install the Metal toolchain
+        run: xcodebuild -downloadComponent MetalToolchain
+
+      - name: Install node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.node_version }}
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.qt_version }}
-          dir: ${{ github.workspace }}/opt
+          dir: ${{ runner.temp }}/qt
           tools: 'tools_ninja'
           modules: 'qtshadertools'
 
@@ -264,45 +257,31 @@ jobs:
       - name: Setup cmake
         uses: jwlawson/actions-setup-cmake@v2
         with:
-          cmake-version: '3.24.3'
+          cmake-version: ${{ env.cmake_version }}
 
-      # - name: Install Python
-      #   uses: actions/setup-python@v5
-      #   with:
-      #     python-version: '>=3.10.0 <3.10.10'
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.python_version }}
 
       - name: Install python modules
-        run: |
-          python3 --version
-          pip install html5lib
+        run: pip install html5lib
 
       - name: Get QtWebEngine sources
         run: |
-          mkdir qt && cd qt
-
-          git clone git://code.qt.io/qt/qtwebengine.git
-          cd qtwebengine
-          git checkout ${{ env.qt_checkout_tag }}
-          git submodule init
-          git submodule update
-          cd ..
+          git clone --depth 1 --branch ${{ env.qt_checkout_tag }} ${{ env.qtwebengine_repo }} qt/qtwebengine
+          cd qt/qtwebengine
+          git submodule update --init --recursive --depth 1
 
       - name: Configure QtWebEngine
         run: |
-          cd qt
-
-          mkdir ${{ env.build_dir }} && cd ${{ env.build_dir }}
-          mkdir qtwebengine
-          cd qtwebengine
-
-          ls -la ${{ github.workspace }}/qt/qtwebengine
+          mkdir -p ${{ env.build_dir }} && cd ${{ env.build_dir }}
 
           ${{ env.QT_ROOT_DIR }}/bin/qt-configure-module ${{ github.workspace }}/qt/qtwebengine ${{ env.build_options }} -- ${{ env.build_type_option }} -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }}
 
       - name: Build QtWebEngine
+        working-directory: ${{ env.build_dir }}
         run: |
-          cd qt/build/qtwebengine
-
           cmake --build . --parallel
           cmake --install .
 
