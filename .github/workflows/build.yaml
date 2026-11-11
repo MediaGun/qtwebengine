@@ -64,8 +64,7 @@ env:
 jobs:
   build_linux:
     name: Build for Linux
-    runs-on: [ ubuntu-24.04 ]
-    # The maximum for GitHub-hosted runners.
+    runs-on: [ self-hosted, linux-we-builder ]
     timeout-minutes: 360
 
     env:
@@ -73,12 +72,6 @@ jobs:
       install_prefix: '${{ github.workspace }}/install_linux'
 
     steps:
-      # Chromium's sources and build need far more space than the runner leaves free.
-      - name: Free disk space
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: false
-
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -168,10 +161,9 @@ jobs:
 
   build_windows:
     name: Build for Windows
-    # windows-2022: Visual Studio 2022, as Qt's msvc2022_64 binaries and the app. windows-2025 has
-    # Visual Studio 2026, whose DLLs need a newer C++ runtime than the app ships.
-    runs-on: [ windows-2022 ]
-    # The maximum for GitHub-hosted runners.
+    # The runner needs Visual Studio 2022, as Qt's msvc2022_64 binaries and the app: Visual Studio
+    # 2026's DLLs need a newer C++ runtime than the app ships. See docs/self-hosted-windows-runner.md.
+    runs-on: [ self-hosted, windows-we-builder ]
     timeout-minutes: 360
 
     env:
@@ -277,8 +269,7 @@ jobs:
 
   build_macos:
     name: Build for MacOS
-    runs-on: [ macos-26 ]
-    # The maximum for GitHub-hosted runners.
+    runs-on: [ self-hosted, macos-we-builder ]
     timeout-minutes: 360
 
     env:
