@@ -8,6 +8,21 @@ Sources:
 
 Written 2026-11-09.
 
+## Automatic setup
+
+`scripts/setup-windows-runner.ps1` checks everything below and installs or configures what is missing. Run it from an elevated PowerShell (Windows PowerShell 5.1 is enough):
+
+```
+# Only report what is missing
+powershell -ExecutionPolicy Bypass -File .\setup-windows-runner.ps1 -CheckOnly
+# Install and configure
+powershell -ExecutionPolicy Bypass -File .\setup-windows-runner.ps1
+# Also register the runner (token from Settings > Actions > Runners > New self-hosted runner)
+powershell -ExecutionPolicy Bypass -File .\setup-windows-runner.ps1 -RunnerToken <token>
+```
+
+It can be run again at any time. The summary at the end lists each check as OK, FIXED, MISSING, WARN or FAILED, and the full log goes to `%TEMP%`. Besides the software below, it puts Git Bash (`Git\bin`) on the machine PATH, ahead of WSL's `bash.exe`. `jurplel/install-qt-action` runs its steps in bash and fails with "bash: command not found" without it. It also adds Microsoft Defender exclusions for the build folders, and restarts the runner service when PATH changes.
+
 ## Software to install on the machine
 
 The hosted image has these, and the job expects them.
