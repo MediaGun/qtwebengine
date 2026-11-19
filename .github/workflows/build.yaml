@@ -60,56 +60,6 @@ env:
   CCACHE_BASEDIR: ${{ github.workspace }}
   CCACHE_COMPILERCHECK: content
   CCACHE_SLOPPINESS: time_macros,include_file_mtime,include_file_ctime
-  # aqtinstall's settings (read through AQT_CONFIG, which replaces its defaults, so it is complete).
-  # When download.qt.io doesn't answer (it blocks some regions), aqtinstall picks one of the
-  # fallbacks at random. Its default list has qt-mirror.dannhauer.de, whose certificate expired
-  # (SSLError), and mirrors.ukfast.co.uk, which has no Qt 6.12: both are dropped and blacklisted.
-  # Checksums come from the trusted mirrors in turn, so they work without download.qt.io too.
-  aqt_settings: |
-    [DEFAULTS]
-
-    [aqt]
-    concurrency : 4
-    baseurl : https://download.qt.io
-    7zcmd : 7z
-    print_stacktrace_on_error : True
-    always_keep_archives : False
-    archive_download_location : .
-    min_module_size : 41
-
-    [requests]
-    connection_timeout : 10
-    response_timeout : 60
-    max_retries_on_connection_error : 5
-    retry_backoff : 0.5
-    max_retries_on_checksum_error : 5
-    max_retries_to_retrieve_hash : 5
-    hash_algorithm : sha256
-    INSECURE_NOT_FOR_PRODUCTION_ignore_hash : False
-
-    [mirrors]
-    trusted_mirrors :
-        https://download.qt.io
-        https://ftp.fau.de/qtproject
-        https://mirrors.dotsrc.org/qtproject
-        https://www.nic.funet.fi/pub/mirrors/download.qt-project.org
-    blacklist :
-        http://mirrors.ocf.berkeley.edu
-        http://mirrors.tuna.tsinghua.edu.cn
-        http://mirrors.geekpie.club
-        https://qt-mirror.dannhauer.de
-        http://qt-mirror.dannhauer.de
-        https://mirrors.ukfast.co.uk
-        http://mirrors.ukfast.co.uk
-    fallbacks :
-        https://ftp.fau.de/qtproject/
-        https://mirror.netcologne.de/qtproject/
-        https://mirrors.dotsrc.org/qtproject/
-        https://www.nic.funet.fi/pub/mirrors/download.qt-project.org/
-        https://ftp.nluug.nl/languages/qt/
-        https://qt.mirror.constant.com/
-        https://qtproject.mirror.liquidtelecom.com/
-        https://ftp.jaist.ac.jp/pub/qtproject/
 
 jobs:
   build_linux:
@@ -140,12 +90,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.node_version }}
-
-      - name: Configure aqtinstall mirrors
-        shell: bash
-        run: |
-          printf '%s\n' "$aqt_settings" > "$RUNNER_TEMP/aqt-settings.ini"
-          echo "AQT_CONFIG=$RUNNER_TEMP/aqt-settings.ini" >> "$GITHUB_ENV"
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -253,12 +197,6 @@ jobs:
         with:
           node-version: ${{ env.node_version }}
 
-      - name: Configure aqtinstall mirrors
-        shell: bash
-        run: |
-          printf '%s\n' "$aqt_settings" > "$RUNNER_TEMP/aqt-settings.ini"
-          echo "AQT_CONFIG=$RUNNER_TEMP/aqt-settings.ini" >> "$GITHUB_ENV"
-
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
@@ -352,12 +290,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.node_version }}
-
-      - name: Configure aqtinstall mirrors
-        shell: bash
-        run: |
-          printf '%s\n' "$aqt_settings" > "$RUNNER_TEMP/aqt-settings.ini"
-          echo "AQT_CONFIG=$RUNNER_TEMP/aqt-settings.ini" >> "$GITHUB_ENV"
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
