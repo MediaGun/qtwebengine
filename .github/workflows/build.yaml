@@ -65,7 +65,7 @@ jobs:
   build_linux:
     name: Build for Linux
     runs-on: [ self-hosted, linux-we-builder ]
-    timeout-minutes: 360
+    timeout-minutes: 1440
 
     env:
       build_dir: '${{ github.workspace }}/build'
@@ -141,7 +141,7 @@ jobs:
         working-directory: ${{ env.build_dir }}
         # Less than the job's 360 minutes: if the build doesn't finish, the job still has time to
         # save the cache.
-        timeout-minutes: 300
+        timeout-minutes: 1440
         run: |
           cmake --build . --parallel
           cmake --install .
@@ -164,7 +164,7 @@ jobs:
     # The runner needs Visual Studio 2022, as Qt's msvc2022_64 binaries and the app: Visual Studio
     # 2026's DLLs need a newer C++ runtime than the app ships. See docs/self-hosted-windows-runner.md.
     runs-on: [ self-hosted, windows-we-builder ]
-    timeout-minutes: 360
+    timeout-minutes: 1440
 
     env:
       # Short paths on the runner's D: drive: Chromium's paths are long.
@@ -252,7 +252,7 @@ jobs:
         working-directory: ${{ env.build_dir }}
         # Less than the job's 360 minutes: if the build doesn't finish, the job still has time to
         # save the cache.
-        timeout-minutes: 300
+        timeout-minutes: 1440
         run: |
           cmake --build . --parallel
           cmake --install .
@@ -270,7 +270,7 @@ jobs:
   build_macos:
     name: Build for MacOS
     runs-on: [ self-hosted, macos-we-builder ]
-    timeout-minutes: 360
+    timeout-minutes: 1440
 
     env:
       build_dir: '${{ github.workspace }}/build'
@@ -344,7 +344,7 @@ jobs:
         working-directory: ${{ env.build_dir }}
         # Less than the job's 360 minutes: if the build doesn't finish, the job still has time to
         # save the cache.
-        timeout-minutes: 300
+        timeout-minutes: 1440
         run: |
           cmake --build . --parallel
           cmake --install .
