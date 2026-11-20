@@ -1,0 +1,2 @@
+# Patches must keep LF line endings, also in a Windows checkout (core.autocrlf), or git apply fails.
+*.patch -text

@@ -1,0 +1,20 @@
+diff --git a/src/core/configure/BUILD.root.gn.in b/src/core/configure/BUILD.root.gn.in
+index 84101d4..a928bfa 100644
+--- a/src/core/configure/BUILD.root.gn.in
++++ b/src/core/configure/BUILD.root.gn.in
+@@ -265,9 +265,14 @@ source_set("devtools_sources") {
+     "//third_party/blink/public/mojom:mojom_platform",
+     "//chrome/common:buildflags",
+     "//components/compose:buildflags",
+-    "//extensions/common:mojom",
+     "//rlz/buildflags:buildflags",
+     ]
++  # The extension mojom bindings use extensions/common types (URLPatternSet, PermissionSet, ...),
++  # which are only built with extensions. Only devtools_ui_bindings.cc uses them, under
++  # BUILDFLAG(ENABLE_EXTENSIONS).
++  if (enable_extensions) {
++    deps += [ "//extensions/common:mojom" ]
++  }
+   sources = [
+      "//chrome/browser/devtools/devtools_eye_dropper.cc",
+      "//chrome/browser/devtools/devtools_eye_dropper.h",

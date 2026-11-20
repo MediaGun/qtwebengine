@@ -34,7 +34,8 @@ env:
   # Chromium submodule's URL is relative, so it comes from the mirror too.
   qtwebengine_repo: https://github.com/qt/qtwebengine.git
   # The same on every platform. Only what the app uses is built (Qt WebEngine Core and Quick, Qt
-  # Pdf and Pdf Quick), which also keeps the build shorter, within GitHub's 6 hours per job.
+  # Pdf and Pdf Quick), which also keeps the build shorter. Without extensions, Qt WebEngine 6.140
+  # doesn't link (unresolved extensions::URLPatternSet, ...): patches/qtwebengine fixes that.
   build_options: >-
     -webengine-proprietary-codecs
     -webengine-pepper-plugins
@@ -45,7 +46,10 @@ env:
     -no-feature-webengine-spellchecker
     -no-feature-webengine-extensions
     -no-feature-webenginedriver
-  build_type_option: "" # "-DCMAKE_BUILD_TYPE=Release"
+  # Release only: no debug libraries, no debug symbols (symbol_level=0). The shortest build and the
+  # smallest result. Windows uses Ninja Multi-Config (Qt's msvc2022_64 is a debug-and-release
+  # build), which takes CMAKE_CONFIGURATION_TYPES instead: see build_windows.
+  build_type_option: -DCMAKE_BUILD_TYPE=Release
   # Qt 6.12 needs CMake 3.25 or newer; Qt WebEngine 6.140 needs Node.js 20 or newer.
   cmake_version: '3.31.6'
   node_version: '20'
@@ -72,6 +76,11 @@ jobs:
       install_prefix: '${{ github.workspace }}/install_linux'
 
     steps:
+      # Our repository, for patches/. On a self-hosted runner it also cleans the workspace (the
+      # last run's sources, build and install folders).
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -130,6 +139,7 @@ jobs:
           git clone --depth 1 --branch ${{ env.qt_checkout_tag }} ${{ env.qtwebengine_repo }} qt/qtwebengine
           cd qt/qtwebengine
           git submodule update --init --recursive --depth 1
+          git apply ${{ github.workspace }}/patches/qtwebengine/*.patch
 
       - name: Configure QtWebEngine
         run: |
@@ -139,8 +149,6 @@ jobs:
 
       - name: Build QtWebEngine
         working-directory: ${{ env.build_dir }}
-        # Less than the job's 360 minutes: if the build doesn't finish, the job still has time to
-        # save the cache.
         timeout-minutes: 1440
         run: |
           cmake --build . --parallel
@@ -172,8 +180,14 @@ jobs:
       build_dir: 'D:\qtwe\build'
       install_prefix: 'D:\qtwe\install'
       qt_dir: 'D:\opt'
+      build_type_option: -DCMAKE_CONFIGURATION_TYPES=Release
 
     steps:
+      # Our repository, for patches/. On a self-hosted runner it also cleans the workspace (the
+      # last run's sources, build and install folders).
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Prepare environment
         shell: pwsh
         run: |
@@ -181,6 +195,8 @@ jobs:
           Set-ItemProperty $p LongPathsEnabled 1
           git config --global core.longpaths true
 
+          # The last run's sources, build and install folders stay on the self-hosted runner.
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue ${{ env.checkout_dir }}, ${{ env.build_dir }}, ${{ env.install_prefix }}
           New-Item -ItemType Directory -Force ${{ env.checkout_dir }}, ${{ env.build_dir }}
 
       - name: Prepare tools
@@ -240,6 +256,7 @@ jobs:
         run: |
           git clone --depth 1 --branch ${{ env.qt_checkout_tag }} ${{ env.qtwebengine_repo }} .
           git submodule update --init --recursive --depth 1
+          git apply (Get-ChildItem ${{ github.workspace }}\patches\qtwebengine\*.patch).FullName
 
       - name: Configure QtWebEngine
         shell: cmd
@@ -250,8 +267,6 @@ jobs:
       - name: Build QtWebEngine
         shell: cmd
         working-directory: ${{ env.build_dir }}
-        # Less than the job's 360 minutes: if the build doesn't finish, the job still has time to
-        # save the cache.
         timeout-minutes: 1440
         run: |
           cmake --build . --parallel
@@ -277,6 +292,11 @@ jobs:
       install_prefix: '${{ github.workspace }}/install_macos'
 
     steps:
+      # Our repository, for patches/. On a self-hosted runner it also cleans the workspace (the
+      # last run's sources, build and install folders).
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Prepare libraries
         run: |
           brew install gperf bison flex
@@ -333,6 +353,7 @@ jobs:
           git clone --depth 1 --branch ${{ env.qt_checkout_tag }} ${{ env.qtwebengine_repo }} qt/qtwebengine
           cd qt/qtwebengine
           git submodule update --init --recursive --depth 1
+          git apply ${{ github.workspace }}/patches/qtwebengine/*.patch
 
       - name: Configure QtWebEngine
         run: |
@@ -342,8 +363,6 @@ jobs:
 
       - name: Build QtWebEngine
         working-directory: ${{ env.build_dir }}
-        # Less than the job's 360 minutes: if the build doesn't finish, the job still has time to
-        # save the cache.
         timeout-minutes: 1440
         run: |
           cmake --build . --parallel
