@@ -50,8 +50,10 @@ env:
   # crash reports. The symbols are moved out of the install folder (scripts/ci/split-debug-symbols.sh)
   # and published separately, as qtwebengine-<platform>-symbols, so the app doesn't ship them.
   # On Windows, Qt's msvc2022_64 is a debug-and-release build: qt-configure-module always uses
-  # Ninja Multi-Config there and forces Qt's own configurations (RelWithDebInfo;Debug), so the job
-  # builds and installs with --config RelWithDebInfo instead: see build_windows.
+  # Ninja Multi-Config there and forces Qt's own configurations (RelWithDebInfo;Debug), and Qt
+  # WebEngine builds Chromium for all of them, whichever --config is built.
+  # patches/qtwebengine/0002 adds QT_WEBENGINE_BUILD_CONFIGS, which limits Chromium's builds to
+  # RelWithDebInfo; the job builds and installs with --config RelWithDebInfo: see build_windows.
   # scripts/ci/check-build-config.sh fails the job if anything of Debug would be or was built.
   build_type_option: -DCMAKE_BUILD_TYPE=RelWithDebInfo
   # Qt 6.12 needs CMake 3.25 or newer; Qt WebEngine 6.140 needs Node.js 20 or newer.
@@ -205,8 +207,9 @@ jobs:
       build_dir: 'D:\qtwe\build'
       install_prefix: 'D:\qtwe\install'
       qt_dir: 'D:\opt'
-      # Ignored with Ninja Multi-Config: --config RelWithDebInfo picks the configuration.
-      build_type_option: ''
+      # CMAKE_BUILD_TYPE is ignored with Ninja Multi-Config. Chromium only for RelWithDebInfo
+      # (patches/qtwebengine/0002); CMake's own targets with --config RelWithDebInfo.
+      build_type_option: -DQT_WEBENGINE_BUILD_CONFIGS=RelWithDebInfo
       symbols_dir: 'D:\qtwe\symbols'
 
     steps:
