@@ -1,0 +1,24 @@
+diff --git a/cmake/QtToolchainHelpers.cmake b/cmake/QtToolchainHelpers.cmake
+index 5784bb8..b8acd19 100644
+--- a/cmake/QtToolchainHelpers.cmake
++++ b/cmake/QtToolchainHelpers.cmake
+@@ -681,6 +681,19 @@ endmacro()
+ function(get_configs result)
+     if(QT_GENERATOR_IS_MULTI_CONFIG)
+         set(${result} ${CMAKE_CONFIGURATION_TYPES})
++        # With a debug-and-release Qt, qt-configure-module always uses Ninja Multi-Config and
++        # forces Qt's own CMAKE_CONFIGURATION_TYPES (e.g. RelWithDebInfo;Debug), and every
++        # configuration's Chromium build is a dependency of every configuration's build.
++        # QT_WEBENGINE_BUILD_CONFIGS limits Chromium's GN builds to a subset of them.
++        if(QT_WEBENGINE_BUILD_CONFIGS)
++            foreach(config IN LISTS QT_WEBENGINE_BUILD_CONFIGS)
++                if(NOT config IN_LIST CMAKE_CONFIGURATION_TYPES)
++                    message(FATAL_ERROR "QT_WEBENGINE_BUILD_CONFIGS: '${config}' is not in "
++                        "CMAKE_CONFIGURATION_TYPES (${CMAKE_CONFIGURATION_TYPES}).")
++                endif()
++            endforeach()
++            set(${result} ${QT_WEBENGINE_BUILD_CONFIGS})
++        endif()
+     else()
+         set(${result} ${CMAKE_BUILD_TYPE})
+     endif()

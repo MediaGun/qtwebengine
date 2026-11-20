@@ -10,9 +10,10 @@
 # Single-config generators (Ninja on Linux and macOS) build CMAKE_BUILD_TYPE, which must be
 # RelWithDebInfo. On Windows, Qt's msvc2022_64 is a debug-and-release build, and qt-configure-module
 # always uses Ninja Multi-Config and forces Qt's own CMAKE_CONFIGURATION_TYPES (RelWithDebInfo;Debug,
-# from QtBuildInternalsExtra.cmake). Debug is then configured but not built: the workflow builds
-# and installs with --config RelWithDebInfo, and this script checks that this builds nothing of
-# Debug (a ninja dry run), and afterwards that Chromium's GN build has no Debug folder.
+# from QtBuildInternalsExtra.cmake). Debug is then configured but not built: Chromium is limited to
+# RelWithDebInfo with QT_WEBENGINE_BUILD_CONFIGS (patches/qtwebengine/0002), the workflow builds and
+# installs with --config RelWithDebInfo, and this script checks that this builds nothing of Debug
+# (a ninja dry run), and afterwards that Chromium's GN build has no Debug folder.
 set -euo pipefail
 
 expected=RelWithDebInfo
