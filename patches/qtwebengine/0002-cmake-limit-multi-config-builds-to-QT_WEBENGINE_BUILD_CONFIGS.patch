@@ -22,3 +22,19 @@ index 5784bb8..b8acd19 100644
      else()
          set(${result} ${CMAKE_BUILD_TYPE})
      endif()
+diff --git a/src/core/CMakeLists.txt b/src/core/CMakeLists.txt
+index 37e1cd4..3cd465a 100644
+--- a/src/core/CMakeLists.txt
++++ b/src/core/CMakeLists.txt
+@@ -679,6 +679,11 @@ if(WIN32)
+         set_property(TARGET WebEngineCoreSandbox
+             PROPERTY IMPORTED_LOCATION_${cfg} ${sandboxLibraryPath}
+         )
++        # For configurations left out by QT_WEBENGINE_BUILD_CONFIGS: CMake needs a location for
++        # every configuration it generates, also for those that aren't built.
++        set_property(TARGET WebEngineCoreSandbox
++            PROPERTY IMPORTED_LOCATION ${sandboxLibraryPath}
++        )
+         add_custom_target(sandboxLibrary_${config}
+             DEPENDS ${buildDir}/${config}/${arch}/QtWebEngineCoreSandbox.lib)
+         add_dependencies(run_core_NinjaDone sandboxLibrary_${config})
