@@ -46,10 +46,13 @@ env:
     -no-feature-webengine-spellchecker
     -no-feature-webengine-extensions
     -no-feature-webenginedriver
-  # Release only: no debug libraries, no debug symbols (symbol_level=0). The shortest build and the
-  # smallest result. Windows uses Ninja Multi-Config (Qt's msvc2022_64 is a debug-and-release
-  # build), which takes CMAKE_CONFIGURATION_TYPES instead: see build_windows.
-  build_type_option: -DCMAKE_BUILD_TYPE=Release
+  # RelWithDebInfo only, never Debug: optimized like Release, plus debug symbols for symbolicating
+  # crash reports. The symbols are moved out of the install folder (scripts/ci/split-debug-symbols.sh)
+  # and published separately, as qtwebengine-<platform>-symbols, so the app doesn't ship them.
+  # Windows uses Ninja Multi-Config (Qt's msvc2022_64 is a debug-and-release build), which takes
+  # CMAKE_CONFIGURATION_TYPES instead: see build_windows. scripts/ci/check-build-config.sh fails
+  # the job if anything else is configured.
+  build_type_option: -DCMAKE_BUILD_TYPE=RelWithDebInfo
   # Qt 6.12 needs CMake 3.25 or newer; Qt WebEngine 6.140 needs Node.js 20 or newer.
   cmake_version: '3.31.6'
   node_version: '20'
@@ -74,6 +77,7 @@ jobs:
     env:
       build_dir: '${{ github.workspace }}/build'
       install_prefix: '${{ github.workspace }}/install_linux'
+      symbols_dir: '${{ github.workspace }}/symbols_linux'
 
     steps:
       # Our repository, for patches/. On a self-hosted runner it also cleans the workspace (the
@@ -147,12 +151,20 @@ jobs:
 
           ${{ env.QT_ROOT_DIR }}/bin/qt-configure-module ${{ github.workspace }}/qt/qtwebengine ${{ env.build_options }} -- ${{ env.build_type_option }} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }}
 
+      - name: Check the build configuration
+        shell: bash
+        run: scripts/ci/check-build-config.sh "${{ env.build_dir }}"
+
       - name: Build QtWebEngine
         working-directory: ${{ env.build_dir }}
         timeout-minutes: 1440
         run: |
           cmake --build . --parallel
           cmake --install .
+
+      - name: Split debug symbols
+        shell: bash
+        run: scripts/ci/split-debug-symbols.sh "${{ env.install_prefix }}" "${{ env.build_dir }}" "${{ env.symbols_dir }}"
 
       - name: Cache statistics
         if: always()
@@ -167,6 +179,14 @@ jobs:
           name: qtwebengine-linux
           path: qtwebengine.tar
 
+      # Not part of the app: for symbolicating crash reports. Kept with the release on a tag.
+      - name: Publish debug symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: qtwebengine-linux-symbols
+          path: ${{ env.symbols_dir }}
+          if-no-files-found: error
+
   build_windows:
     name: Build for Windows
     # The runner needs Visual Studio 2022, as Qt's msvc2022_64 binaries and the app: Visual Studio
@@ -180,7 +200,8 @@ jobs:
       build_dir: 'D:\qtwe\build'
       install_prefix: 'D:\qtwe\install'
       qt_dir: 'D:\opt'
-      build_type_option: -DCMAKE_CONFIGURATION_TYPES=Release
+      build_type_option: -DCMAKE_CONFIGURATION_TYPES=RelWithDebInfo
+      symbols_dir: 'D:\qtwe\symbols'
 
     steps:
       # Our repository, for patches/. On a self-hosted runner it also cleans the workspace (the
@@ -196,7 +217,7 @@ jobs:
           git config --global core.longpaths true
 
           # The last run's sources, build and install folders stay on the self-hosted runner.
-          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue ${{ env.checkout_dir }}, ${{ env.build_dir }}, ${{ env.install_prefix }}
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue ${{ env.checkout_dir }}, ${{ env.build_dir }}, ${{ env.install_prefix }}, ${{ env.symbols_dir }}
           New-Item -ItemType Directory -Force ${{ env.checkout_dir }}, ${{ env.build_dir }}
 
       - name: Prepare tools
@@ -264,6 +285,10 @@ jobs:
         run: |
           ${{ env.QT_ROOT_DIR }}\bin\qt-configure-module.bat ${{ env.checkout_dir }} ${{ env.build_options }} -- ${{ env.build_type_option }} -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }}
 
+      - name: Check the build configuration
+        shell: bash
+        run: scripts/ci/check-build-config.sh "$(cygpath -u '${{ env.build_dir }}')"
+
       - name: Build QtWebEngine
         shell: cmd
         working-directory: ${{ env.build_dir }}
@@ -271,6 +296,10 @@ jobs:
         run: |
           cmake --build . --parallel
           cmake --install .
+
+      - name: Split debug symbols
+        shell: bash
+        run: scripts/ci/split-debug-symbols.sh "$(cygpath -u '${{ env.install_prefix }}')" "$(cygpath -u '${{ env.build_dir }}')" "$(cygpath -u '${{ env.symbols_dir }}')"
 
       - name: Cache statistics
         if: always()
@@ -282,6 +311,14 @@ jobs:
           name: qtwebengine-windows
           path: ${{ env.install_prefix }}
 
+      # Not part of the app: for symbolicating crash reports. Kept with the release on a tag.
+      - name: Publish debug symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: qtwebengine-windows-symbols
+          path: ${{ env.symbols_dir }}
+          if-no-files-found: error
+
   build_macos:
     name: Build for MacOS
     runs-on: [ self-hosted, macos-we-builder ]
@@ -290,6 +327,7 @@ jobs:
     env:
       build_dir: '${{ github.workspace }}/build'
       install_prefix: '${{ github.workspace }}/install_macos'
+      symbols_dir: '${{ github.workspace }}/symbols_macos'
 
     steps:
       # Our repository, for patches/. On a self-hosted runner it also cleans the workspace (the
@@ -361,12 +399,20 @@ jobs:
 
           ${{ env.QT_ROOT_DIR }}/bin/qt-configure-module ${{ github.workspace }}/qt/qtwebengine ${{ env.build_options }} -- ${{ env.build_type_option }} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_INSTALL_PREFIX=${{ env.install_prefix }}
 
+      - name: Check the build configuration
+        shell: bash
+        run: scripts/ci/check-build-config.sh "${{ env.build_dir }}"
+
       - name: Build QtWebEngine
         working-directory: ${{ env.build_dir }}
         timeout-minutes: 1440
         run: |
           cmake --build . --parallel
           cmake --install .
+
+      - name: Split debug symbols
+        shell: bash
+        run: scripts/ci/split-debug-symbols.sh "${{ env.install_prefix }}" "${{ env.build_dir }}" "${{ env.symbols_dir }}"
 
       - name: Cache statistics
         if: always()
@@ -380,6 +426,14 @@ jobs:
         with:
           name: qtwebengine-macos
           path: qtwebengine.tar
+
+      # Not part of the app: for symbolicating crash reports. Kept with the release on a tag.
+      - name: Publish debug symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: qtwebengine-macos-symbols
+          path: ${{ env.symbols_dir }}
+          if-no-files-found: error
 
   # On a tag (e.g. v6.140.0): a GitHub release with one zip per platform, laid out as the app's
   # build.yaml downloads them: qtwebengine-windows.zip has the install folder's contents, to be
@@ -403,6 +457,7 @@ jobs:
         run: |
           for platform in linux windows macos; do
             (cd qtwebengine-$platform && zip -r -y ../../qtwebengine-$platform.zip .)
+            (cd qtwebengine-$platform-symbols && zip -r -y ../../qtwebengine-$platform-symbols.zip .)
           done
           ls -la ..
 
@@ -411,5 +466,6 @@ jobs:
         with:
           name: Qt WebEngine ${{ env.qt_checkout_tag }} for Qt ${{ env.qt_version }} (${{ github.ref_name }})
           body: |
-            Qt WebEngine and Qt Pdf ${{ env.qt_checkout_tag }}, built against Qt ${{ env.qt_version }} for Linux, Windows and macOS.
+            Qt WebEngine and Qt Pdf ${{ env.qt_checkout_tag }}, built against Qt ${{ env.qt_version }} for Linux, Windows and macOS (RelWithDebInfo).
+            The `-symbols` zips hold the debug symbols (PDB, .debug, dSYM) for symbolicating crash reports; the app doesn't ship them.
           files: qtwebengine-*.zip
