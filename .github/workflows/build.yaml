@@ -49,9 +49,10 @@ env:
   # RelWithDebInfo only, never Debug: optimized like Release, plus debug symbols for symbolicating
   # crash reports. The symbols are moved out of the install folder (scripts/ci/split-debug-symbols.sh)
   # and published separately, as qtwebengine-<platform>-symbols, so the app doesn't ship them.
-  # Windows uses Ninja Multi-Config (Qt's msvc2022_64 is a debug-and-release build), which takes
-  # CMAKE_CONFIGURATION_TYPES instead: see build_windows. scripts/ci/check-build-config.sh fails
-  # the job if anything else is configured.
+  # On Windows, Qt's msvc2022_64 is a debug-and-release build: qt-configure-module always uses
+  # Ninja Multi-Config there and forces Qt's own configurations (RelWithDebInfo;Debug), so the job
+  # builds and installs with --config RelWithDebInfo instead: see build_windows.
+  # scripts/ci/check-build-config.sh fails the job if anything of Debug would be or was built.
   build_type_option: -DCMAKE_BUILD_TYPE=RelWithDebInfo
   # Qt 6.12 needs CMake 3.25 or newer; Qt WebEngine 6.140 needs Node.js 20 or newer.
   cmake_version: '3.31.6'
@@ -153,7 +154,7 @@ jobs:
 
       - name: Check the build configuration
         shell: bash
-        run: scripts/ci/check-build-config.sh "${{ env.build_dir }}"
+        run: scripts/ci/check-build-config.sh configured "${{ env.build_dir }}"
 
       - name: Build QtWebEngine
         working-directory: ${{ env.build_dir }}
@@ -161,6 +162,10 @@ jobs:
         run: |
           cmake --build . --parallel
           cmake --install .
+
+      - name: Check what was built
+        shell: bash
+        run: scripts/ci/check-build-config.sh built "${{ env.build_dir }}" "${{ env.install_prefix }}"
 
       - name: Split debug symbols
         shell: bash
@@ -200,7 +205,8 @@ jobs:
       build_dir: 'D:\qtwe\build'
       install_prefix: 'D:\qtwe\install'
       qt_dir: 'D:\opt'
-      build_type_option: -DCMAKE_CONFIGURATION_TYPES=RelWithDebInfo
+      # Ignored with Ninja Multi-Config: --config RelWithDebInfo picks the configuration.
+      build_type_option: ''
       symbols_dir: 'D:\qtwe\symbols'
 
     steps:
@@ -287,15 +293,19 @@ jobs:
 
       - name: Check the build configuration
         shell: bash
-        run: scripts/ci/check-build-config.sh "$(cygpath -u '${{ env.build_dir }}')"
+        run: scripts/ci/check-build-config.sh configured "$(cygpath -u '${{ env.build_dir }}')"
 
       - name: Build QtWebEngine
         shell: cmd
         working-directory: ${{ env.build_dir }}
         timeout-minutes: 1440
         run: |
-          cmake --build . --parallel
-          cmake --install .
+          cmake --build . --config RelWithDebInfo --parallel
+          cmake --install . --config RelWithDebInfo
+
+      - name: Check what was built
+        shell: bash
+        run: scripts/ci/check-build-config.sh built "$(cygpath -u '${{ env.build_dir }}')" "$(cygpath -u '${{ env.install_prefix }}')"
 
       - name: Split debug symbols
         shell: bash
@@ -401,7 +411,7 @@ jobs:
 
       - name: Check the build configuration
         shell: bash
-        run: scripts/ci/check-build-config.sh "${{ env.build_dir }}"
+        run: scripts/ci/check-build-config.sh configured "${{ env.build_dir }}"
 
       - name: Build QtWebEngine
         working-directory: ${{ env.build_dir }}
@@ -409,6 +419,10 @@ jobs:
         run: |
           cmake --build . --parallel
           cmake --install .
+
+      - name: Check what was built
+        shell: bash
+        run: scripts/ci/check-build-config.sh built "${{ env.build_dir }}" "${{ env.install_prefix }}"
 
       - name: Split debug symbols
         shell: bash
