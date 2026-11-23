@@ -230,6 +230,18 @@ fix_runner_path() {
 }
 fix_runner_start() { svc start >/dev/null && runner_running && echo "started"; }
 
+# GitHub's prebuilt Python for macOS is a .pkg that actions/setup-python installs with
+# "sudo installer -pkg ..." (into /Library/Frameworks), and the job can't type a password. Only
+# installer is allowed: it can install any package as root, so this runner's jobs must be trusted.
+SUDOERS_FILE="/etc/sudoers.d/github-runner-$(id -un)"
+fix_sudo_installer() {
+  local tmp
+  tmp="$(mktemp)" || return 1
+  printf '%s ALL=(root) NOPASSWD: /usr/sbin/installer\n' "$(id -un)" > "$tmp"
+  sudo visudo -cf "$tmp" >/dev/null || { rm -f "$tmp"; echo "visudo rejected the rule"; return 1; }
+  sudo install -m 0440 -o root -g wheel "$tmp" "$SUDOERS_FILE" && rm -f "$tmp" && echo "$SUDOERS_FILE"
+}
+
 # actions/setup-python (the job's "Install Python", and "Install Qt", which runs it too) installs
 # GitHub's prebuilt Python, which on macOS only installs to /Users/runner/hostedtoolcache, the
 # GitHub-hosted runners' tool cache. The runner's tool cache is pointed there too, so tools are
@@ -270,6 +282,9 @@ check_runner() {
     else fix "Homebrew on the runner's PATH" "$(dirname "$BREW") not in $RUNNER_DIR/.path" fix_runner_path; fi
   fi
 
+  # Not "sudo -n -l": it also succeeds with the password this script cached with "sudo -v".
+  if [ -f "$SUDOERS_FILE" ]; then result "Passwordless sudo installer" OK "$SUDOERS_FILE"
+  else fix "Passwordless sudo installer" "the job's 'sudo installer' (actions/setup-python) would ask for a password" fix_sudo_installer; fi
   if [ -d "$TOOL_CACHE" ] && [ -w "$TOOL_CACHE" ]; then result "Tool cache" OK "$TOOL_CACHE"
   else fix "Tool cache" "$TOOL_CACHE missing or not writable (actions/setup-python fails)" fix_tool_cache_dir; fi
   if grep -qx "AGENT_TOOLSDIRECTORY=$TOOL_CACHE" "$RUNNER_DIR/.env" 2>/dev/null; then result "Runner's tool cache" OK "$TOOL_CACHE"
