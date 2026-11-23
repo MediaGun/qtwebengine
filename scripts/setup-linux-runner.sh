@@ -100,8 +100,8 @@ check_machine() {
   id="$(. /etc/os-release && echo "$ID")"
   ver="$(. /etc/os-release && echo "$VERSION_ID")"
   arch="$(uname -m)"
-  if [ "$id" = ubuntu ] && [ "$ver" = 24.04 ]; then result "OS" OK "Ubuntu $ver"
-  elif command -v apt-get >/dev/null; then result "OS" WARN "$id $ver; the job was written for Ubuntu 24.04 (package names may differ)"
+  if [ "$id" = ubuntu ] && [ "$ver" = 22.04 ]; then result "OS" OK "Ubuntu $ver"
+  elif command -v apt-get >/dev/null; then result "OS" WARN "$id $ver; Linux builds are made on Ubuntu 22.04, so they run on 22.04 and newer (glibc 2.35); a newer system makes them require its newer glibc"
   else result "OS" FAILED "$id $ver; the job installs packages with apt-get"; fi
   if [ "$arch" = x86_64 ]; then result "Architecture" OK "$arch"
   else result "Architecture" WARN "$arch; the GitHub-hosted build was x86_64"; fi
