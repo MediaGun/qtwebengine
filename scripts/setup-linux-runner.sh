@@ -130,7 +130,8 @@ fix_sudoers() {
 check_sudo() {
   step "sudo for the job"
   # The job runs "sudo apt-get ..." and can't type a password.
-  if sudo -n -l /usr/bin/apt-get >/dev/null 2>&1; then result "Passwordless sudo apt-get" OK
+  # Not "sudo -n -l": it also succeeds with the password this script cached with "sudo -v".
+  if [ -f "$SUDOERS_FILE" ]; then result "Passwordless sudo apt-get" OK "$SUDOERS_FILE"
   else fix "Passwordless sudo apt-get" "the job's 'sudo apt-get' would ask for a password" fix_sudoers; fi
 }
 
