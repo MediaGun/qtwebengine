@@ -1,0 +1,88 @@
+name: Publish release from a build
+run-name: Publish ${{ inputs.tag }} from run ${{ inputs.run_id }}
+
+# Publishes the artifacts of a finished "Build library" run as a GitHub release, without rebuilding
+# and without the artifacts leaving GitHub. For builds that weren't started by a tag (a push to a
+# branch), whose "Publish release" job is skipped.
+#
+#   gh workflow run publish-release.yaml -f run_id=<run id> -f tag=v6.12.0
+#
+# The tag is created on the run's commit. A tag created with GITHUB_TOKEN doesn't start workflows,
+# so this doesn't start a "Build library" run of the tag.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: ID of a successful "Build library" run (from its URL)
+        required: true
+      tag:
+        description: Release tag to create, e.g. v6.12.0
+        required: true
+      qt_version:
+        description: Qt version the run built against (its qt_version)
+        default: 6.12.0
+      qt_checkout_tag:
+        description: Qt WebEngine version the run built (its qt_checkout_tag)
+        default: 6.140.0
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    name: Publish release
+    runs-on: [ ubuntu-24.04 ]
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RUN_ID: ${{ inputs.run_id }}
+      TAG: ${{ inputs.tag }}
+
+    steps:
+      - name: Check the build run
+        id: run
+        run: |
+          read -r name conclusion sha < <(gh api "repos/$GH_REPO/actions/runs/$RUN_ID" \
+            --jq '[.name, .conclusion, .head_sha] | map(gsub(" "; "_")) | join(" ")')
+          echo "Run $RUN_ID: $name, $conclusion, commit $sha"
+          if [ "$name" != Build_library ] || [ "$conclusion" != success ]; then
+            echo "::error::Run $RUN_ID isn't a successful \"Build library\" run."
+            exit 1
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::Release $TAG already exists."
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+          path: artifacts
+
+      - name: Package
+        working-directory: artifacts
+        run: |
+          for platform in linux windows macos; do
+            (cd qtwebengine-$platform && zip -q -r -y ../../qtwebengine-$platform.zip .)
+            (cd qtwebengine-$platform-symbols && zip -q -r -y ../../qtwebengine-$platform-symbols.zip .)
+          done
+          ls -la ..
+
+      - name: Create GitHub release
+        env:
+          SHA: ${{ steps.run.outputs.sha }}
+          QT_VERSION: ${{ inputs.qt_version }}
+          WEBENGINE_VERSION: ${{ inputs.qt_checkout_tag }}
+        run: |
+          gh release create "$TAG" qtwebengine-*.zip \
+            --target "$SHA" \
+            --title "Qt WebEngine $WEBENGINE_VERSION for Qt $QT_VERSION ($TAG)" \
+            --notes "Qt WebEngine and Qt Pdf $WEBENGINE_VERSION, built against Qt $QT_VERSION for Linux, Windows and macOS (RelWithDebInfo).
+          The \`-symbols\` zips hold the debug symbols (PDB, .debug, dSYM) for symbolicating crash reports; the app doesn't ship them.
+
+          Built by run $GITHUB_SERVER_URL/$GH_REPO/actions/runs/$RUN_ID."
