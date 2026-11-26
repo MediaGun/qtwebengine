@@ -31,7 +31,7 @@ APT_PACKAGES="
   libdbus-1-dev libdrm-dev libegl1-mesa-dev libevent-dev libfontconfig1-dev libfreetype6-dev libicu-dev libjsoncpp-dev libminizip-dev
   libnss3-dev libopus-dev libpci-dev libprotobuf-dev libpulse-dev libre2-dev libsnappy-dev libsrtp2-dev libssl-dev libudev-dev libvpx-dev
   libwebp-dev libx11-dev libx11-xcb-dev libxcb-glx0-dev libxcb-icccm4-dev libxcb-image0-dev libxcb-keysyms1-dev libxcb-randr0-dev
-  libxcb-render-util0-dev libxcb-shape0-dev libxcb-shm0-dev libxcb-sync0-dev libxcb-util-dev libxcb-xfixes0-dev libxcb-xinerama0-dev
+  libxcb-render-util0-dev libxcb-shape0-dev libxcb-shm0-dev libxcb-sync0-dev libxcb-util-dev libxcb-xfixes0-dev libxcb-xinerama0-dev libxcb-dri3-dev
   libxcb-xkb-dev libxcb1-dev libxcomposite-dev libxcursor-dev libxdamage-dev libxext-dev libxfixes-dev libxi-dev libxkbcommon-dev
   libxkbcommon-x11-dev libxkbfile-dev libxrandr-dev libxrender-dev libxshmfence-dev libxss-dev libxtst-dev
   ninja-build protobuf-compiler
@@ -100,8 +100,8 @@ check_machine() {
   id="$(. /etc/os-release && echo "$ID")"
   ver="$(. /etc/os-release && echo "$VERSION_ID")"
   arch="$(uname -m)"
-  if [ "$id" = ubuntu ] && [ "$ver" = 24.04 ]; then result "OS" OK "Ubuntu $ver"
-  elif command -v apt-get >/dev/null; then result "OS" WARN "$id $ver; the job was written for Ubuntu 24.04 (package names may differ)"
+  if [ "$id" = ubuntu ] && [ "$ver" = 22.04 ]; then result "OS" OK "Ubuntu $ver"
+  elif command -v apt-get >/dev/null; then result "OS" WARN "$id $ver; Linux builds are made on Ubuntu 22.04, so they run on 22.04 and newer (glibc 2.35); a newer system makes them require its newer glibc"
   else result "OS" FAILED "$id $ver; the job installs packages with apt-get"; fi
   if [ "$arch" = x86_64 ]; then result "Architecture" OK "$arch"
   else result "Architecture" WARN "$arch; the GitHub-hosted build was x86_64"; fi
@@ -130,7 +130,8 @@ fix_sudoers() {
 check_sudo() {
   step "sudo for the job"
   # The job runs "sudo apt-get ..." and can't type a password.
-  if sudo -n -l /usr/bin/apt-get >/dev/null 2>&1; then result "Passwordless sudo apt-get" OK
+  # Not "sudo -n -l": it also succeeds with the password this script cached with "sudo -v".
+  if [ -f "$SUDOERS_FILE" ]; then result "Passwordless sudo apt-get" OK "$SUDOERS_FILE"
   else fix "Passwordless sudo apt-get" "the job's 'sudo apt-get' would ask for a password" fix_sudoers; fi
 }
 
