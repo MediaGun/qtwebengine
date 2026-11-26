@@ -230,6 +230,35 @@ fix_runner_path() {
 }
 fix_runner_start() { svc start >/dev/null && runner_running && echo "started"; }
 
+# GitHub's prebuilt Python for macOS is a .pkg that actions/setup-python installs with
+# "sudo installer -pkg ..." (into /Library/Frameworks), and the job can't type a password. Only
+# installer is allowed: it can install any package as root, so this runner's jobs must be trusted.
+SUDOERS_FILE="/etc/sudoers.d/github-runner-$(id -un)"
+fix_sudo_installer() {
+  local tmp
+  tmp="$(mktemp)" || return 1
+  printf '%s ALL=(root) NOPASSWD: /usr/sbin/installer\n' "$(id -un)" > "$tmp"
+  sudo visudo -cf "$tmp" >/dev/null || { rm -f "$tmp"; echo "visudo rejected the rule"; return 1; }
+  sudo install -m 0440 -o root -g wheel "$tmp" "$SUDOERS_FILE" && rm -f "$tmp" && echo "$SUDOERS_FILE"
+}
+
+# actions/setup-python (the job's "Install Python", and "Install Qt", which runs it too) installs
+# GitHub's prebuilt Python, which on macOS only installs to /Users/runner/hostedtoolcache, the
+# GitHub-hosted runners' tool cache. The runner's tool cache is pointed there too, so tools are
+# found again in the next job.
+TOOL_CACHE=/Users/runner/hostedtoolcache
+fix_tool_cache_dir() {
+  sudo mkdir -p "$TOOL_CACHE" && sudo chown -R "$(id -un)" "$TOOL_CACHE" && echo "$TOOL_CACHE"
+}
+fix_runner_tool_cache() {
+  # The runner service takes environment variables from the .env file.
+  touch "$RUNNER_DIR/.env" || return 1
+  sed -i '' '/^AGENT_TOOLSDIRECTORY=/d; /^RUNNER_TOOL_CACHE=/d' "$RUNNER_DIR/.env" || return 1
+  printf 'AGENT_TOOLSDIRECTORY=%s\nRUNNER_TOOL_CACHE=%s\n' "$TOOL_CACHE" "$TOOL_CACHE" >> "$RUNNER_DIR/.env" || return 1
+  PATH_CHANGED=1
+  echo "AGENT_TOOLSDIRECTORY=$TOOL_CACHE in $RUNNER_DIR/.env"
+}
+
 check_runner() {
   step "GitHub Actions runner"
   if [ -n "$RUNNER_TOKEN" ]; then
@@ -253,13 +282,21 @@ check_runner() {
     else fix "Homebrew on the runner's PATH" "$(dirname "$BREW") not in $RUNNER_DIR/.path" fix_runner_path; fi
   fi
 
+  # Not "sudo -n -l": it also succeeds with the password this script cached with "sudo -v".
+  if [ -f "$SUDOERS_FILE" ]; then result "Passwordless sudo installer" OK "$SUDOERS_FILE"
+  else fix "Passwordless sudo installer" "the job's 'sudo installer' (actions/setup-python) would ask for a password" fix_sudo_installer; fi
+  if [ -d "$TOOL_CACHE" ] && [ -w "$TOOL_CACHE" ]; then result "Tool cache" OK "$TOOL_CACHE"
+  else fix "Tool cache" "$TOOL_CACHE missing or not writable (actions/setup-python fails)" fix_tool_cache_dir; fi
+  if grep -qx "AGENT_TOOLSDIRECTORY=$TOOL_CACHE" "$RUNNER_DIR/.env" 2>/dev/null; then result "Runner's tool cache" OK "$TOOL_CACHE"
+  else fix "Runner's tool cache" "not $TOOL_CACHE" fix_runner_tool_cache; fi
+
   if runner_running; then
     result "Runner service" OK "running"
     if [ "$PATH_CHANGED" = 1 ]; then
       if pgrep -f Runner.Worker >/dev/null; then
-        result "Runner restart" WARN "PATH changed but a job is running; run 'cd $RUNNER_DIR && ./svc.sh stop && ./svc.sh start' after it"
+        result "Runner restart" WARN "settings changed but a job is running; run 'cd $RUNNER_DIR && ./svc.sh stop && ./svc.sh start' after it"
       elif svc stop >/dev/null && svc start >/dev/null; then
-        result "Runner restart" FIXED "restarted to pick up the new PATH"
+        result "Runner restart" FIXED "restarted to pick up the new settings"
       else
         result "Runner restart" FAILED "svc.sh stop/start failed"
       fi
