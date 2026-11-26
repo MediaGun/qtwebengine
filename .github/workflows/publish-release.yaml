@@ -44,10 +44,11 @@ jobs:
       - name: Check the build run
         id: run
         run: |
-          read -r name conclusion sha < <(gh api "repos/$GH_REPO/actions/runs/$RUN_ID" \
-            --jq '[.name, .conclusion, .head_sha] | map(gsub(" "; "_")) | join(" ")')
-          echo "Run $RUN_ID: $name, $conclusion, commit $sha"
-          if [ "$name" != Build_library ] || [ "$conclusion" != success ]; then
+          # .path, not .name: .name is the run's run-name ("Build library by <actor>").
+          read -r path conclusion sha < <(gh api "repos/$GH_REPO/actions/runs/$RUN_ID" \
+            --jq '"\(.path) \(.conclusion) \(.head_sha)"')
+          echo "Run $RUN_ID: $path, $conclusion, commit $sha"
+          if [ "$path" != .github/workflows/build.yaml ] || [ "$conclusion" != success ]; then
             echo "::error::Run $RUN_ID isn't a successful \"Build library\" run."
             exit 1
           fi
